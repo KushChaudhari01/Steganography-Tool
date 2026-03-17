@@ -118,15 +118,6 @@ steganography-tool/
 - Maximum capacity = (width × height × 3) / 8 characters
 - Example: a 1920×1080 image can hide ~777,600 characters
 
----
-
-## Potential Enhancements (for resume bullet points)
-
-- [ ] Audio steganography (WAV files)
-- [ ] Image steganography detection (steganalysis)
-- [ ] AES-256 encryption instead of XOR
-- [ ] Random pixel selection using a seed key
-- [ ] Support for hiding files (not just text)
 
 ---
 
