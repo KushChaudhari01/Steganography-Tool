@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Steganography Tool</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Courier New', monospace; background: #0d0d0d; color: #e0e0e0; min-height: 100vh; }
+    header { background: #111; border-bottom: 1px solid #333; padding: 1rem 2rem; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 1.2rem; color: #00ff88; letter-spacing: 2px; }
+    .badge { background: #00ff8820; border: 1px solid #00ff8860; color: #00ff88; padding: 2px 10px; border-radius: 20px; font-size: 11px; }
+    .container { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; }
+    .tab-btn { padding: 8px 20px; background: transparent; border: 1px solid #333; color: #888; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 13px; transition: all 0.2s; }
+    .tab-btn.active, .tab-btn:hover { border-color: #00ff88; color: #00ff88; background: #00ff8810; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .card { background: #111; border: 1px solid #222; border-radius: 10px; padding: 1.5rem; margin-bottom: 1rem; }
+    label { font-size: 12px; color: #888; display: block; margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase; }
+    input[type=text], input[type=password], textarea {
+      width: 100%; background: #0d0d0d; border: 1px solid #333; color: #e0e0e0;
+      padding: 10px 14px; border-radius: 6px; font-family: inherit; font-size: 13px;
+      outline: none; transition: border 0.2s;
+    }
+    input:focus, textarea:focus { border-color: #00ff88; }
+    textarea { resize: vertical; min-height: 80px; }
+    .upload-area {
+      border: 2px dashed #333; border-radius: 8px; padding: 2rem; text-align: center;
+      cursor: pointer; transition: all 0.2s; margin-bottom: 1rem;
+    }
+    .upload-area:hover, .upload-area.dragover { border-color: #00ff88; background: #00ff8808; }
+    .upload-area input { display: none; }
+    .upload-area .icon { font-size: 2rem; margin-bottom: 8px; }
+    .upload-area p { color: #888; font-size: 13px; }
+    .preview { max-width: 200px; max-height: 150px; border-radius: 6px; border: 1px solid #333; margin-top: 10px; display: none; }
+    button.submit { background: #00ff88; color: #000; border: none; padding: 10px 24px; border-radius: 6px; font-family: inherit; font-size: 13px; font-weight: bold; cursor: pointer; transition: opacity 0.2s; width: 100%; margin-top: 10px; }
+    button.submit:hover { opacity: 0.85; }
+    button.submit:disabled { opacity: 0.4; cursor: not-allowed; }
+    .result { background: #0a1a0f; border: 1px solid #00ff8840; border-radius: 8px; padding: 1rem 1.2rem; margin-top: 1rem; font-size: 13px; display: none; }
+    .result.error { background: #1a0a0a; border-color: #ff4444; color: #ff6666; }
+    .result.success { color: #00ff88; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media(max-width:600px) { .grid2 { grid-template-columns: 1fr; } }
+    .loader { display: none; border: 2px solid #333; border-top-color: #00ff88; border-radius: 50%; width: 20px; height: 20px; animation: spin 0.8s linear infinite; margin: 0 auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .cap-info { font-size: 12px; color: #555; margin-top: 4px; }
+    .cap-info span { color: #00ff88; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>STEGANO TOOL</h1>
+    <span class="badge">LSB v1.0</span>
+  </header>
+
+  <div class="container">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('encode')">[ encode ]</button>
+      <button class="tab-btn" onclick="switchTab('decode')">[ decode ]</button>
+    </div>
+
+    <!-- ENCODE PANEL -->
+    <div id="encode" class="panel active">
+      <div class="card">
+        <label>cover image</label>
+        <div class="upload-area" id="enc-drop" onclick="document.getElementById('enc-file').click()">
+          <input type="file" id="enc-file" accept="image/*" onchange="previewImg('enc-file','enc-preview','enc-cap')">
+          <div class="icon">🖼️</div>
+          <p>click or drag & drop an image here</p>
+          <p style="font-size:11px;margin-top:4px;">PNG recommended (JPG compression destroys hidden data!)</p>
+        </div>
+        <img class="preview" id="enc-preview" alt="preview">
+        <p class="cap-info" id="enc-cap"></p>
+      </div>
+
+      <div class="card">
+        <div class="grid2">
+          <div>
+            <label>secret message</label>
+            <textarea id="enc-msg" placeholder="type your secret here..."></textarea>
+          </div>
+          <div>
+            <label>password (optional)</label>
+            <input type="password" id="enc-pass" placeholder="leave blank for no encryption">
+          </div>
+        </div>
+        <button class="submit" id="enc-btn" onclick="doEncode()">hide message in image</button>
+        <div class="loader" id="enc-loader"></div>
+        <div class="result" id="enc-result"></div>
+      </div>
+    </div>
+
+    <!-- DECODE PANEL -->
+    <div id="decode" class="panel">
+      <div class="card">
+        <label>encoded image</label>
+        <div class="upload-area" onclick="document.getElementById('dec-file').click()">
+          <input type="file" id="dec-file" accept="image/*" onchange="previewImg('dec-file','dec-preview',null)">
+          <div class="icon">🔍</div>
+          <p>upload the image with hidden message</p>
+        </div>
+        <img class="preview" id="dec-preview" alt="preview">
+      </div>
+      <div class="card">
+        <label>password (if encoded with one)</label>
+        <input type="password" id="dec-pass" placeholder="leave blank if no password was used">
+        <button class="submit" id="dec-btn" onclick="doDecode()">extract hidden message</button>
+        <div class="loader" id="dec-loader"></div>
+        <div class="result" id="dec-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(name) {
+      document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['encode','decode'][i] === name));
+      document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === name));
+    }
+
+    function previewImg(inputId, previewId, capId) {
+      const file = document.getElementById(inputId).files[0];
+      if (!file) return;
+      const preview = document.getElementById(previewId);
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = 'block';
+      if (capId) {
+        const fd = new FormData();
+        fd.append('image', file);
+        fetch('/capacity', { method: 'POST', body: fd })
+          .then(r => r.json())
+          .then(d => {
+            if(d.capacity) document.getElementById(capId).innerHTML = `capacity: <span>${d.capacity} characters</span>`;
+          });
+      }
+    }
+
+    async function doEncode() {
+      const file = document.getElementById('enc-file').files[0];
+      const msg = document.getElementById('enc-msg').value;
+      const pass = document.getElementById('enc-pass').value;
+      const result = document.getElementById('enc-result');
+      const loader = document.getElementById('enc-loader');
+      const btn = document.getElementById('enc-btn');
+
+      if (!file || !msg) { showResult(result, 'Please upload an image and enter a message', true); return; }
+
+      btn.disabled = true; loader.style.display = 'block'; result.style.display = 'none';
+      const fd = new FormData();
+      fd.append('image', file);
+      fd.append('message', msg);
+      if (pass) fd.append('password', pass);
+
+      const res = await fetch('/encode', { method: 'POST', body: fd });
+      loader.style.display = 'none'; btn.disabled = false;
+
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'encoded_image.png'; a.click();
+        showResult(result, '✓ Message hidden! Encoded image downloaded.', false);
+      } else {
+        const err = await res.json();
+        showResult(result, err.error, true);
+      }
+    }
+
+    async function doDecode() {
+      const file = document.getElementById('dec-file').files[0];
+      const pass = document.getElementById('dec-pass').value;
+      const result = document.getElementById('dec-result');
+      const loader = document.getElementById('dec-loader');
+      const btn = document.getElementById('dec-btn');
+
+      if (!file) { showResult(result, 'Please upload an encoded image', true); return; }
+
+      btn.disabled = true; loader.style.display = 'block'; result.style.display = 'none';
+      const fd = new FormData();
+      fd.append('image', file);
+      if (pass) fd.append('password', pass);
+
+      const res = await fetch('/decode', { method: 'POST', body: fd });
+      loader.style.display = 'none'; btn.disabled = false;
+
+      const data = await res.json();
+      if (res.ok) showResult(result, `✓ Hidden message: "${data.message}"`, false);
+      else showResult(result, data.error, true);
+    }
+
+    function showResult(el, msg, isError) {
+      el.textContent = msg;
+      el.className = 'result ' + (isError ? 'error' : 'success');
+      el.style.display = 'block';
+    }
+
+    // Drag-and-drop
+    const drop = document.getElementById('enc-drop');
+    drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+    drop.addEventListener('drop', e => {
+      e.preventDefault(); drop.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        const dt = new DataTransfer(); dt.items.add(file);
+        document.getElementById('enc-file').files = dt.files;
+        previewImg('enc-file','enc-preview','enc-cap');
+      }
+    });
+  </script>
+</body>
+</html>
